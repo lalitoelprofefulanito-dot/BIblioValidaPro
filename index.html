@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Identificación bibliográfica · Libros del Rincón</title>
+<meta name="description" content="Identifica libros y ediciones, conserva el contexto histórico de Libros del Rincón y genera el catálogo con portadas.">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<a class="salto" href="#contenido">Ir al contenido</a>
+
+<header class="cabecera">
+  <div class="marca">
+    <span class="marca-sello" aria-hidden="true">LR</span>
+    <span>
+      <strong>Identificación bibliográfica</strong>
+      <small>Libros del Rincón · acervo escolar</small>
+    </span>
+  </div>
+  <p class="cabecera-estado" id="estado-global">Cargando catálogo histórico…</p>
+</header>
+
+<div class="armazon">
+  <nav class="navegacion" aria-label="Secciones">
+    <a href="#inicio" data-seccion="inicio">Inicio</a>
+    <a href="#importar" data-seccion="importar">Importar</a>
+    <a href="#procesamiento" data-seccion="procesamiento">Procesamiento</a>
+    <a href="#resultados" data-seccion="resultados">Resultados</a>
+    <a href="#revision" data-seccion="revision">Revisión <span class="pastilla" id="nav-revision">0</span></a>
+    <a href="#catalogo" data-seccion="catalogo">Catálogo maestro</a>
+    <a href="#fuentes" data-seccion="fuentes">Fuentes y evidencia</a>
+    <a href="#clasificacion" data-seccion="clasificacion">Clasificación SEP</a>
+    <a href="#exportacion" data-seccion="exportacion">Exportación</a>
+    <a href="#ajustes" data-seccion="ajustes">Ajustes</a>
+  </nav>
+
+  <main id="contenido" class="contenido" tabindex="-1">
+    <p class="aviso-fijo" id="aviso-fijo" role="alert" hidden></p>
+    <section id="s-inicio" class="seccion"></section>
+    <section id="s-importar" class="seccion" hidden></section>
+    <section id="s-procesamiento" class="seccion" hidden></section>
+    <section id="s-resultados" class="seccion" hidden></section>
+    <section id="s-revision" class="seccion" hidden></section>
+    <section id="s-catalogo" class="seccion" hidden></section>
+    <section id="s-fuentes" class="seccion" hidden></section>
+    <section id="s-clasificacion" class="seccion" hidden></section>
+    <section id="s-exportacion" class="seccion" hidden></section>
+    <section id="s-ajustes" class="seccion" hidden></section>
+  </main>
+</div>
+
+<div class="panel-fondo" id="panel-fondo" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="panel-titulo">
+    <div class="panel-cabecera">
+      <h2 id="panel-titulo">Ficha</h2>
+      <button type="button" class="btn btn-plano" id="panel-cerrar">Cerrar</button>
+    </div>
+    <div class="panel-cuerpo" id="panel-cuerpo"></div>
+  </div>
+</div>
+
+<div class="aviso" id="aviso" hidden role="status"></div>
+
+<script src="data/taxonomia-curricular.js" defer></script>
+<script src="data/clasificador-sep.js" defer></script>
+<script src="data/sep-catalogo-pdf-1986-2006.js" defer></script>
+<script src="data/sep-catalogo-primaria.js" defer></script>
+<script src="js/00-util.js" defer></script>
+<script src="js/10-model.js" defer></script>
+<script src="js/20-import.js" defer></script>
+<script src="js/30-sources.js" defer></script>
+<script src="js/50-sep.js" defer></script>
+<script src="js/40-matching.js" defer></script>
+<script src="js/60-review.js" defer></script>
+<script src="js/70-export.js" defer></script>
+<script src="js/80-ui.js" defer></script>
+</body>
+</html>
