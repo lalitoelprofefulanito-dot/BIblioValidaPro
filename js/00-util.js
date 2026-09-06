@@ -400,7 +400,23 @@
     var t = setTimeout(function () { if (ctrl) ctrl.abort(); }, ms);
     return fetch(url, op).then(function (r) {
       clearTimeout(t);
-      if (!r.ok) throw new Error('HTTP ' + r.status + ' en ' + url);
+      if (!r.ok) {
+        // El mensaje que se ve va a parar a las observaciones del registro, y
+        // ahí acaba en la columna del inventario. Antes llevaba la URL entera
+        // —con el título codificado dentro— y una sola incidencia ocupaba
+        // doscientos caracteres, repetidos en cada libro. Aquí queda el dato
+        // que sirve para entender qué pasó; la URL se guarda aparte, para
+        // diagnóstico, sin ensuciar lo que se imprime.
+        var err = new Error('HTTP ' + r.status);
+        err.status = r.status;
+        err.url = url;
+        // 429 = se agotó la cuota de consultas de esa fuente. No es un fallo
+        // del libro ni de la conexión: es un límite que se levanta con el tiempo.
+        err.cuotaAgotada = (r.status === 429);
+        var reintentar = r.headers && r.headers.get && r.headers.get('Retry-After');
+        if (reintentar) err.reintentarEn = reintentar;
+        throw err;
+      }
       return opciones.tipo === 'texto' ? r.text() : (opciones.tipo === 'blob' ? r.blob() : r.json());
     }, function (e) {
       clearTimeout(t);

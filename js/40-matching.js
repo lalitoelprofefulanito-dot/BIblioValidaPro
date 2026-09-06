@@ -416,6 +416,7 @@
     paso('Consultando fuentes bibliográficas');
     return F.consultar(reg).then(function (r) {
       r.notas.forEach(function (n) { M.observar(reg, n); });
+      (r.tecnico || []).forEach(function (t) { M.anotarTecnico(reg, t); });
 
       var puntuados = r.candidatos.map(function (c) { return X.puntuar(reg, c); })
         .filter(function (c) { return c.score > 0; })
@@ -537,6 +538,10 @@
   X.lote = { activo: false, cancelado: false, indice: 0, total: 0, mensaje: '' };
 
   X.procesarLote = function (registros, alAvanzar) {
+    // Cada lote empieza con las fuentes disponibles: una cuota agotada ayer
+    // puede haberse restablecido hoy, y una red que bloqueaba puede haber
+    // cambiado. El cortacircuitos vale para este lote, no para siempre.
+    if (F.reiniciarCortacircuitos) F.reiniciarCortacircuitos();
     X.lote = { activo: true, cancelado: false, indice: 0, total: registros.length, mensaje: '' };
     var i = 0;
     function siguiente() {

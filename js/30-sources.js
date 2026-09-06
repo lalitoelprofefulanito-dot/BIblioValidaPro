@@ -39,14 +39,104 @@
 
   // Cuando una fuente falla, se anota. El hueco no se rellena con otra (§40).
   F._notas = [];
+  F._tecnico = [];
+
+  // Cortacircuitos por fuente. En el procesamiento real de 136 libros, Google
+  // Books devolvió «cuota agotada» y la Library of Congress quedó bloqueada por
+  // la red: la aplicación siguió preguntándoles una vez por libro, 136 veces
+  // cada una, y escribió 136 observaciones idénticas. Eso alarga el lote,
+  // consume la cuota del día siguiente y llena la columna del inventario con
+  // ruido. Tras varios fallos seguidos del mismo tipo, la fuente se aparta de
+  // este lote y se dice una sola vez, con lo que hay que hacer.
+  F.LIMITE_FALLOS = 4;
+  F._averiadas = Object.create(null);
+
+  F.reiniciarCortacircuitos = function () { F._averiadas = Object.create(null); };
+
+  F.estadoFuente = function (fuente) { return F._averiadas[fuente] || null; };
+
+  F.fuenteApartada = function (fuente) {
+    var a = F._averiadas[fuente];
+    return !!(a && a.apartada);
+  };
+
+  // Distingue «la fuente está caída» de «ese libro no está ahí». Un 404 o un
+  // 400 son respuestas normales de una fuente sana que no encontró el título, y
+  // apartarla por eso dejaría fuera a la única que sí funciona. Solo cuentan
+  // como avería la cuota agotada, los errores del servidor y la red muerta.
+  function esAveria(e) {
+    if (!e) return true;
+    if (e.cuotaAgotada) return true;
+    if (typeof e.status === 'number') return e.status >= 500 || e.status === 429 || e.status === 403;
+    return true;   // sin status = fallo de red o tiempo agotado
+  }
+
+  function anotarFallo(fuente, e) {
+    var a = F._averiadas[fuente] || (F._averiadas[fuente] = { fallos: 0, apartada: false, causa: '' });
+    if (!esAveria(e)) return a;   // «no encontrado» no avería nada
+    // Una respuesta buena reinicia la cuenta: los fallos que importan son los
+    // seguidos, no los sueltos a lo largo de un lote de cientos de libros.
+    // La cuota agotada aparta la fuente de inmediato: insistir no la reabre y
+    // cada intento extra retrasa la que sí responde.
+    if (e && e.cuotaAgotada) {
+      a.apartada = true;
+      a.causa = 'cuota';
+      a.reintentarEn = e.reintentarEn || '';
+      return a;
+    }
+    a.fallos++;
+    if (a.fallos >= F.LIMITE_FALLOS) {
+      a.apartada = true;
+      a.causa = a.causa || 'red';
+    }
+    return a;
+  }
+
+  function textoApartada(fuente, a) {
+    var n = M.nombreFuente(fuente);
+    if (a.causa === 'cuota') {
+      return n + ' agotó su cuota de consultas y queda fuera de este lote. ' +
+        'No es un problema de tus libros ni de la conexión: el límite se restablece solo, ' +
+        'normalmente al día siguiente. Vuelve a procesar los pendientes entonces' +
+        (a.reintentarEn ? ' (la fuente pide esperar ' + a.reintentarEn + ' s)' : '') + '.';
+    }
+    return n + ' no respondió ' + F.LIMITE_FALLOS + ' veces seguidas y queda fuera de este lote. ' +
+      'Suele ser que la red bloquea ese sitio. Prueba desde otra conexión y vuelve a procesar los pendientes.';
+  }
+
+  // Una consulta que sí respondió limpia el historial de esa fuente.
+  F.marcarExito = function (fuente) {
+    var a = F._averiadas[fuente];
+    if (a && !a.apartada) a.fallos = 0;
+  };
+
   function fallo(fuente, contexto) {
     return function (e) {
-      var msg = M.nombreFuente(fuente) + ' no respondió al consultar ' + contexto +
-        ' (' + ((e && e.message) || 'error de red') + '). No se sustituye por otra fuente.';
-      if (F._notas.indexOf(msg) === -1) F._notas.push(msg);
+      var a = anotarFallo(fuente, e);
+      if (a.apartada) {
+        var aviso = textoApartada(fuente, a);
+        if (F._notas.indexOf(aviso) === -1) F._notas.push(aviso);
+      } else {
+        var msg = M.nombreFuente(fuente) + ' no respondió al consultar ' + contexto +
+          ' (' + ((e && e.message) || 'error de red') + '). No se sustituye por otra fuente.';
+        if (F._notas.indexOf(msg) === -1) F._notas.push(msg);
+      }
+      // El detalle técnico —la URL exacta— se guarda aparte para poder
+      // diagnosticar, sin que acabe en la columna que se imprime.
+      if (e && e.url) {
+        var det = M.nombreFuente(fuente) + ' · ' + (e.message || 'error') + ' · ' + e.url;
+        if (F._tecnico.indexOf(det) === -1) F._tecnico.push(det);
+      }
       return null;
     };
   }
+
+  // Envuelve una consulta: si la fuente ya está apartada, no se pregunta.
+  function siDisponible(fuente, fn) {
+    if (F.fuenteApartada(fuente)) return Promise.resolve(null);
+    return fn();
+  }
+  F._siDisponible = siDisponible;
 
   function conCache(fuente, tipo, valor, fn) {
     var k = M.cache.clave(fuente, tipo, valor);
@@ -323,9 +413,14 @@
     var autor = M.valor(reg, 'autor') || U2.limpia(reg.crudo.autor);
     var tareas = [], notas = [];
     F._notas = [];
+    F._tecnico = [];
 
     F.activas().forEach(function (k) {
       var ad = F.adaptadores[k];
+      // Una fuente apartada no se vuelve a consultar en este lote: preguntar de
+      // nuevo a algo que ya dijo que no puede responder solo gasta tiempo y
+      // cuota, y no aporta nada al registro.
+      if (F.fuenteApartada(k)) return;
       if (isbn) tareas.push(ad.porISBN(isbn).catch(function (e) { notas.push(k + ': ' + e.message); return []; }));
       if (titulo) tareas.push(ad.porTitulo(titulo, autor).catch(function (e) { notas.push(k + ': ' + e.message); return []; }));
     });
@@ -339,8 +434,9 @@
       var todos = [];
       listas.forEach(function (l) { todos = todos.concat(l || []); });
       var notasFuentes = notas.concat(F._notas);
-      F._notas = [];
-      return { candidatos: todos, notas: notasFuentes };
+      var tecnico = F._tecnico.slice();
+      F._notas = []; F._tecnico = [];
+      return { candidatos: todos, notas: notasFuentes, tecnico: tecnico };
     });
   };
 

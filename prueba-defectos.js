@@ -306,6 +306,40 @@ chk('una hoja sin columna «ISBN» genérica sigue siendo importable',
   !!(mCsv.titulo != null || mCsv.isbn != null || mCsv.isbn10 != null || mCsv.isbn13 != null),
   JSON.stringify(mCsv));
 
+console.log('\n— AA. cortacircuitos de fuentes (evidencia real: 136 consultas inútiles) —');
+var F = LR.fuentes;
+F.reiniciarCortacircuitos();
+var err429 = new Error('HTTP 429'); err429.status = 429; err429.cuotaAgotada = true;
+var errRed = new Error('Failed to fetch');
+var err404 = new Error('HTTP 404'); err404.status = 404;
+
+// La cuota agotada aparta de inmediato
+F._siDisponible('googlebooks', function () { return Promise.resolve(null); });
+chk('una fuente sana no está apartada', !F.fuenteApartada('googlebooks'));
+
+console.log('\n— AB. la URL no viaja en el mensaje visible —');
+var rTec = M.nuevoRegistro({ titulo: 'T' }, { tipo: 't', origen: 'x' });
+M.observar(rTec, 'Google Books agotó su cuota de consultas y queda fuera de este lote.');
+M.anotarTecnico(rTec, 'Google Books · HTTP 429 · https://www.googleapis.com/books/v1/volumes?q=algo');
+chk('las observaciones no llevan URLs',
+  !/https?:\/\//.test(M.observacionesTexto(rTec)), M.observacionesTexto(rTec).substring(0, 60));
+chk('el detalle técnico se guarda aparte', rTec.tecnico.length === 1, rTec.tecnico.length + ' entradas');
+chk('el técnico no crece sin límite', (function () {
+  for (var i = 0; i < 30; i++) M.anotarTecnico(rTec, 'detalle ' + i);
+  return rTec.tecnico.length <= 12;
+})(), rTec.tecnico.length + ' entradas tras 30 anotaciones');
+
+console.log('\n— AC. la exportación separa lo legible de lo técnico —');
+M.estado.registros = [rTec];
+rTec.n = 1;
+var encT = E.tabla([rTec])[0];
+chk('existe la columna «Diagnóstico técnico»', encT.indexOf('Diagnóstico técnico') > -1,
+  encT.slice(-3).join(' | '));
+chk('va al final, después de los campos del inventario',
+  encT.indexOf('Diagnóstico técnico') === encT.length - 1);
+chk('Observaciones sigue siendo una columna del inventario',
+  encT.indexOf('Observaciones') > -1 && encT.indexOf('Observaciones') < encT.indexOf('Procedencia'));
+
 console.log('\n=== ' + fallos + ' defectos ===');
 if (fallos) process.exitCode = 1;
 })();

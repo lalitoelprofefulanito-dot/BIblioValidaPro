@@ -254,7 +254,7 @@
     r.confianza = typeof r.confianza === 'number' ? r.confianza : 0;
     r.crudo = r.crudo || {};
     r.campos = r.campos || {};
-    ['entradas', 'evidencias', 'candidatos', 'observaciones', 'conflictos'].forEach(function (k) {
+    ['entradas', 'evidencias', 'candidatos', 'observaciones', 'conflictos', 'tecnico'].forEach(function (k) {
       if (!Array.isArray(r[k])) r[k] = [];
     });
     r.revision = r.revision || {};
@@ -333,6 +333,20 @@
 
   M.evidenciasDe = function (reg, campo) {
     return reg.evidencias.filter(function (e) { return e.campo === campo; });
+  };
+
+  // Detalle técnico (URLs, códigos HTTP). Va en su propio sitio porque las
+  // observaciones acaban impresas en la columna del inventario, y una URL con
+  // el título codificado dentro ocupaba doscientos caracteres por incidencia.
+  // Aquí queda disponible para diagnosticar sin ensuciar lo que se lee.
+  M.anotarTecnico = function (reg, texto) {
+    texto = U.limpia(texto);
+    if (!texto) return;
+    if (!Array.isArray(reg.tecnico)) reg.tecnico = [];
+    if (reg.tecnico.indexOf(texto) > -1) return;
+    reg.tecnico.push(texto);
+    // Acotado: interesa lo último que falló, no un historial infinito.
+    if (reg.tecnico.length > 12) reg.tecnico = reg.tecnico.slice(-12);
   };
 
   M.observar = function (reg, texto, auto) {

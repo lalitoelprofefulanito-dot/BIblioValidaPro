@@ -437,7 +437,21 @@
       if (!lote.activo) {
         if (cancelar) cancelar.disabled = true;
         UI.render_procesamiento();
-        UI.aviso('Procesamiento terminado. Revisa los resultados.');
+        // Si alguna fuente quedó apartada, decirlo aquí y no solo enterrado en
+        // las observaciones de cada ficha: es la diferencia entre entender que
+        // faltan datos por un límite temporal y creer que la aplicación falló.
+        var apartadas = Object.keys(F._averiadas || {}).filter(function (k) {
+          return F.fuenteApartada(k);
+        });
+        if (apartadas.length) {
+          var porCuota = apartadas.filter(function (k) { return F.estadoFuente(k).causa === 'cuota'; });
+          UI.aviso('Terminado, pero ' + apartadas.map(M.nombreFuente).join(' y ') +
+            (apartadas.length > 1 ? ' quedaron' : ' quedó') + ' fuera del lote' +
+            (porCuota.length ? ' por cuota agotada. Vuelve a procesar los pendientes mañana.'
+                             : '. Prueba desde otra conexión.'));
+        } else {
+          UI.aviso('Procesamiento terminado. Revisa los resultados.');
+        }
       }
     });
   };

@@ -30,6 +30,7 @@
       ubicacion: M.valor(reg, 'ubicacion') || U.limpia(reg.crudo.ubicacion),
       codigo_bv: M.valor(reg, 'codigo_bv') || U.limpia(reg.crudo.codigo_bv),
       procedencia: M.procedencia(reg),
+      tecnico: (reg.tecnico || []).join(' | '),
       isbn13: M.valor(reg, 'isbn13') || U.limpia(reg.crudo.isbn13),
       estado_fisico: reg.fisico.estado_fisico || 'Pendiente',
       resena: M.valor(reg, 'resena'),
@@ -319,14 +320,16 @@
 
   E.tabla = function (registros) {
     var enc = M.CAMPOS_SALIDA.map(function (c) { return c.etiqueta; })
-      .concat(['Estado del registro', 'Confianza', 'Estado de portada', 'URL de portada', 'Campos pendientes']);
+      .concat(['Estado del registro', 'Confianza', 'Estado de portada', 'URL de portada',
+               'Campos pendientes', 'Diagnóstico técnico']);
     var filas = registros.map(function (reg) {
       var f = E.ficha(reg);
       return [f.portadaUrl ? 'Sí' : 'No', f.n, f.titulo, f.autor, f.editorial, f.anio, f.isbn10, f.isbn13,
         f.estado_fisico, f.resena, f.grado, f.tipo_texto, f.categoria_sep,
         f.contenidos_saberes, f.color, f.subserie, f.observaciones,
         f.ubicacion, f.codigo_bv, f.procedencia,
-        f.estado, f.confianza, f.portadaEstado, f.portadaUrl, f.pendientes.join('; ')];
+        f.estado, f.confianza, f.portadaEstado, f.portadaUrl,
+        f.pendientes.join('; '), f.tecnico];
     });
     return [enc].concat(filas);
   };
